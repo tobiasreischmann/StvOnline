@@ -1,13 +1,13 @@
 const ACTION = {
-    COUNT_ROUND: "@ROUND",
-    TRANSFER: ">TRANSFER",
-    ELIMINATE: "-ELIMINATE",
+    COUNT_ROUND: "@Runde",
+    TRANSFER: ">Stimmtransfer",
+    ELIMINATE: "-Team mit den geringsten Stimmen ausschließen.",
     QUOTA: "!QUOTA",
     ELECT: "+ELECT",
     COUNT: ".COUNT",
     ZOMBIES: "~ZOMBIES",
-    RANDOM: "*RANDOM",
-    THRESHOLD: "^THRESHOLD"
+    RANDOM: "*Gleichstand - Losentscheidung",
+    THRESHOLD: "Mindestanzahl Stimmen um gewählt zu werden (Droop-Quote)"
 };
 const ballotSeparator = "\n";
 const voteSeparator = "\t";
@@ -23,9 +23,10 @@ function runStv() {
     document.getElementById("output").style.display = "block";
 
     const threshold = 1 + (ballots.length / (seats + 1)); // Droop quota
-    output("BALLOT COUNT", ballots.length);
-    output("SEATS", seats);
+    output("Anzahl Stimmen", ballots.length);
+    output("Anzahl Startplätze", seats);
     output(ACTION.THRESHOLD, threshold);
+    emtpyRow();
 
     let allocated = {}; // The allocation of ballots to candidates
     let voteCount = {} // A hash of ballot counts, indexed by candidates
@@ -114,8 +115,12 @@ function runStv() {
 
     output('', '');
     for (const e of elected) {
-        output("***ELECTED", e[0] + " at round " + e[1] + " with " + e[2] + " votes");
+        output("***Platz zugeteilt", e[0] + " in Runde " + e[1] + " mit " + e[2] + " Stimmen");
     }
+}
+
+function emtpyRow() {
+    document.getElementById("output").innerHTML += "<div><br></br></div>";
 }
 
 function output(tag, description) {
