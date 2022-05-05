@@ -1,16 +1,16 @@
 const ACTION = {
     COUNT_ROUND: "@Runde",
     TRANSFER: ">Stimmtransfer",
-    ELIMINATE: "-Team mit den geringsten Stimmen ausschließen.",
+    ELIMINATE: "-Team mit den geringsten Stimmen ausschließen",
     QUOTA: "!QUOTA",
-    ELECT: "+ELECT",
-    COUNT: ".COUNT",
+    ELECT: "+Team mit Stimmen größer gleich Quote zuteilen",
+    COUNT: ".Aktuelle Stimmenverteilung",
     ZOMBIES: "~ZOMBIES",
     RANDOM: "*Gleichstand - Losentscheidung",
     THRESHOLD: "Mindestanzahl Stimmen um gewählt zu werden (Droop-Quote)"
 };
 const ballotSeparator = "\n";
-const voteSeparator = "\t";
+const voteSeparator = ",";
 
 function runStv() {
     // Transform input
@@ -26,7 +26,6 @@ function runStv() {
     output("Anzahl Stimmen", ballots.length);
     output("Anzahl Startplätze", seats);
     output(ACTION.THRESHOLD, threshold);
-    emtpyRow();
 
     let allocated = {}; // The allocation of ballots to candidates
     let voteCount = {} // A hash of ballot counts, indexed by candidates
@@ -57,6 +56,7 @@ function runStv() {
     let numElected = elected.length;
     let numHopefuls = hopefuls.length;
     while (numElected < seats && numHopefuls > 0) {
+        emtpyRow();
         output(ACTION.COUNT_ROUND, currentRound);
         hopefuls.sort((hopeful1, hopeful2) => voteCount[hopeful2] - voteCount[hopeful1]);
         output(ACTION.COUNT, countDescription(voteCount, hopefuls));
@@ -69,7 +69,7 @@ function runStv() {
         if (surplus >= 0 || numHopefuls <= (seats - numElected)) {
             const bestCandidate = randomlySelectFirst(hopefuls, voteCount, ACTION.ELECT);
             if (!hopefuls.includes(bestCandidate)) {
-                alert("Not a valid candidate: " + bestCandidate);
+                alert("Kein valides team: " + bestCandidate);
             }
             hopefuls = hopefuls.filter(hopeful => hopeful !== bestCandidate); // Remove from hopefuls
 
@@ -120,7 +120,7 @@ function runStv() {
 }
 
 function emtpyRow() {
-    document.getElementById("output").innerHTML += "<div><br></br></div>";
+    document.getElementById("output").innerHTML += "<div><br/></div>";
 }
 
 function output(tag, description) {
@@ -157,7 +157,7 @@ function randomlySelectFirst(sequence, key, action) {
     const numEligibles = collected.length;
     if (numEligibles > 1) {
         selected = randomArrayMember(collected);
-        output(ACTION.RANDOM, selected + " from " + collected + " to " + action)
+        output(ACTION.RANDOM, selected + " aus dem Set (" + collected.join(', ') + ") gewählt für: " + action)
     }
     return selected;
 }
@@ -211,7 +211,7 @@ function redistributeBallots(selected, weight, hopefuls, allocated, voteCount) {
         const ballots = moves[moveKey];
         const times = ballots.length;
         const move = moveKey.split(" #!# ");
-        output(ACTION.TRANSFER, "from " + move[0] + " to " + move[1] + " " + times + "*" + parseFloat(move[2]).toFixed(3) + "=" + (times * parseFloat(move[2])).toFixed(3));
+        output(ACTION.TRANSFER, "von " + move[0] + " zu " + move[1] + " " + times + "*" + parseFloat(move[2]).toFixed(3) + "=" + (times * parseFloat(move[2])).toFixed(3));
     }
     allocated[selected] = allocated[selected].filter(ballot => !transferred.includes(ballot));
     return allocated;

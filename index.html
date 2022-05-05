@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
 <head>
-    <title>STV Tally</title>
+    <title>STV Jugger Ed.</title>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <meta name="theme-color" content="#607d8b"/>
@@ -65,41 +65,41 @@
 
 <div class="blue-grey white-text" style="padding-top:15px;padding-bottom:20px;line-height:1.5rem;">
     <div class="container">
-        <h2 class="left-align">STV Tally</h2>
-        <span id="subtitle">Simple Transferable Vote Counting</span>
+        <h2 class="left-align">SINGLE TRANSFERABLE VOTE Jugger Edition</h2>
+        <span id="subtitle">Ein Service des Jugger Münster e.V.</span>
     </div>
 </div>
 
 <main class="container">
     <blockquote id="output">
-        <h5>Output</h5>
+        <h5>Ergebnis</h5>
     </blockquote>
     <div id="inputBox">
         <div class="input-field col s6">
             <input id="seat" type="number" class="validate" required min="1" step="1" max="500" value="1">
-            <label for="seat">The number of seats to be elected.</label>
+            <label for="seat">Anzahl der zu verteilenden Startplätze</label>
         </div>
         <div class="input-field">
-            <p>Ballots, tab-separated</p>
-            <textarea id="csvInput" required placeholder="Chocolate	Strawberry
-Banana	Sweets
-Banana	Sweets
-Banana	Strawberry" value="Chocolate	Strawberry
-Banana	Sweets
-Banana	Sweets
-Banana	Strawberry">Chocolate	Strawberry
-Banana	Sweets
-Banana	Sweets
-Banana	Strawberry</textarea>
+            <p>Stimmabgaben, Komma-separiert</p>
+            <textarea id="csvInput" required placeholder="Chocolate,Strawberry
+Banana,Sweets
+Banana,Sweets
+Banana,Strawberry" value="Chocolate,Strawberry
+Banana,Sweets
+Banana,Sweets
+Banana,Strawberry">Chocolate,Strawberry
+Banana,Sweets
+Banana,Sweets
+Banana,Strawberry</textarea>
         </div>
-        <a class="waves-effect waves-light btn-large purple fullwidth" id="first-start">Process</a>
+        <a class="waves-effect waves-light btn-large purple fullwidth" id="first-start">Ergebnis anzeigen</a>
     </div>
 </main>
 
 <footer class="page-footer blue-grey">
     <div class="footer-copyright">
         <div class="container">
-            <a href="https://github.com/keenthekeen/StvOnline">Repository</a> | by Siwat Techavoranant
+            <a href="https://github.com/tobiasreischmann/StvOnline">Code</a> | von Tobias Reischmann (basierend auf <a href="https://github.com/keenthekeen/StvOnline">Siwat Techavoranant</a>)
         </div>
     </div>
 </footer>
