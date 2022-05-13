@@ -12,6 +12,51 @@ const ACTION = {
 const ballotSeparator = "\n";
 const voteSeparator = ",";
 
+const TEAMS = [
+    "Rigor Mortis",
+    "Seven Sins",
+    "Zonenkinder",
+    "Munich Monks",
+    "NLG",
+    "Peters Pawns",
+    "HaWu AllstarZ",
+    "Falco jugger",
+    "Leipziger Nachtwache",
+    "Pompfenbrecher",
+    "Jugger Basilisken Basel",
+    "Schergen von Monasteria",
+    "Flying JUGGmen Bonn",
+    "Jugger Helden Bamberg",
+    "Grünanlagen Guerilla",
+    "Hobbiz",
+    "Blue Fangs",
+    "Fischkoppkrieger",
+    "Rigor Mortis 2",
+    "ProblemMachine",
+    "Problemkinder",
+    "Schatten",
+    "Lokomotive Black Ninja",
+    "Bob Jugger",
+    "Likedeeler",
+    "Anima Equorum",
+    "Pink Pain",
+    "Collapse",
+    "Jumping Juggmen",
+    "Wütende Tintenfische",
+    "The Fellowship",
+    "Nordische Sport Amatuere (NSA)",
+    "Cranium ex Machina",
+    "Skull!",
+    "Sloth Machine",
+    "Amazonenkinder",
+    "Grimm Racoons",
+    "Potsdamer Piranhas",
+    "Nightfox Bonn",
+    "Blutgruppe Nord",
+];
+
+const VOTES_PER_TEAM = 8;
+
 function runStv() {
     // Transform input
     const ballots = document.getElementById("csvInput").value.trim().split(ballotSeparator).map(ballotTxt => {
@@ -22,8 +67,8 @@ function runStv() {
     document.getElementById("inputBox").innerHTML = "";
     document.getElementById("output").style.display = "block";
 
-    const threshold = 1 + (ballots.length / (seats + 1)); // Droop quota
-    output("Anzahl Stimmen", ballots.length);
+    const threshold = 1 + ((ballots.length * VOTES_PER_TEAM) / (seats + 1)); // Droop quota
+    output("Anzahl Stimmen", (ballots.length * VOTES_PER_TEAM) + " von " + ballots.length + " Stimmberechtigten Teams" );
     output("Anzahl Startplätze", seats);
     output(ACTION.THRESHOLD, threshold);
 
@@ -34,9 +79,9 @@ function runStv() {
     let hopefuls; // The candidates that may be elected
     let eliminated = [] // The candidates that have been eliminated because of low counts
 
+    console.log(ballots);
     // Initial count
     for (const ballot of ballots) {
-        const selected = ballot.candidates[0];
         for (const candidate of ballot.candidates) {
             if (!candidates.includes(candidate)) {
                 candidates.push(candidate);
@@ -46,8 +91,13 @@ function runStv() {
                 allocated[candidate] = [];
             }
         }
-        allocated[selected].push(ballot);
-        voteCount[selected]++;
+        for (let i = 0; i < VOTES_PER_TEAM; i++) {
+            const selected = ballot.candidates[i];
+            const partialBallot = new PartialBallot(ballot);
+            allocated[selected].push(partialBallot);
+            voteCount[selected]++;
+        }
+        ballot.currentPreference = VOTES_PER_TEAM;
     }
     hopefuls = candidates; // In the beginning, all candidates are hopefuls
 
@@ -129,7 +179,7 @@ function output(tag, description) {
 
 function countDescription(voteCount, hopefuls) {
     return hopefuls.map(hopeful => {
-        return hopeful + " = " + voteCount[hopeful];
+        return hopeful + " = " + voteCount[hopeful].toFixed(3);
     }).join(", ");
 }
 
@@ -174,19 +224,75 @@ function redistributeBallots(selected, weight, hopefuls, allocated, voteCount) {
     // to the ballot being moved.
     const moves = {};
 
-    for (const ballot of allocated[selected]) {
-        let reallocated = false;
-        let i = ballot.currentPreference + 1;
-        while (!reallocated && i < ballot.candidates.length) {
-            const recipient = ballot.candidates[i];
+    for (const partialBallot of allocated[selected]) {
+
+        let i = partialBallot.ballot.currentPreference;
+        partialBallot.addWeight(weight);
+        var currentValue = partialBallot.getValue();
+        var recipient = partialBallot.ballot.candidates[i];
+        // Wenn der aktuelle Recipient selbst gewählt wurde, dann gehen wir direkt eine Präferenz weiter.
+        if (!hopefuls.includes(recipient)) {
+            partialBallot.ballot.remainingPartialVote = 1;
+            do {
+                i++;
+               
+                partialBallot.ballot.currentPreference++;
+                recipient = partialBallot.ballot.candidates[i];
+            } while (!hopefuls.includes(recipient) && i < partialBallot.ballot.candidates.length);
+            if (i >= partialBallot.ballot.candidates.length) {
+                continue;
+            }
+        }
+        const remainingValue = partialBallot.ballot.remainingPartialVote;
+        const newVal = Math.min(remainingValue,currentValue);
+        partialBallot.ballot.remainingPartialVote -= newVal;
+        const remainingValueBallot = new PartialBallot(partialBallot.ballot);
+        remainingValueBallot.addWeight(newVal);
+        if (allocated.hasOwnProperty(recipient)) {
+            allocated[recipient].push(remainingValueBallot);
+        } else {
+            allocated[recipient] = [remainingValueBallot];
+        }
+        if (voteCount.hasOwnProperty(recipient)) {
+            voteCount[recipient] += currentValue;
+        } else {
+            voteCount[recipient] = currentValue;
+        }
+        voteCount[selected] -= currentValue;
+        const move = [selected, recipient, newVal].join(" #!# ");
+        if (moves.hasOwnProperty(move)) {
+            moves[move].push(remainingValueBallot);
+        } else {
+            moves[move] = [remainingValueBallot];
+        }
+        transferred.push(remainingValueBallot);
+
+        if (0 < partialBallot.ballot.remainingPartialVote) {
+            continue;
+        }
+        
+        partialBallot.ballot.remainingPartialVote = 1;
+        partialBallot.ballot.currentPreference++;
+        i++;
+
+        currentValue = remainingValue - newVal;
+        if (0 === currentValue) {
+            continue;
+        }
+        
+        // Problem ist ggf. dass der recipient gerade an sich selbst verteilt.
+        while (i < partialBallot.ballot.candidates.length) {
+            recipient = partialBallot.ballot.candidates[i];
+            
             if (hopefuls.includes(recipient)) {
-                ballot.currentPreference = i;
-                ballot.addWeight(weight);
-                const currentValue = ballot.getValue();
+                const newPartialBallot = new PartialBallot(partialBallot.ballot);
+                newPartialBallot.addWeight(currentValue);
+                allocated[recipient].push(newPartialBallot);
+
                 if (allocated.hasOwnProperty(recipient)) {
-                    allocated[recipient].push(ballot);
+                    allocated[recipient].push(newPartialBallot);
                 } else {
-                    allocated[recipient] = [ballot];
+                    allocated[recipient] = [newPartialBallot];
                 }
                 if (voteCount.hasOwnProperty(recipient)) {
                     voteCount[recipient] += currentValue;
@@ -194,14 +300,15 @@ function redistributeBallots(selected, weight, hopefuls, allocated, voteCount) {
                     voteCount[recipient] = currentValue;
                 }
                 voteCount[selected] -= currentValue;
-                reallocated = true;
+                partialBallot.ballot.currentPreference = i;
                 const move = [selected, recipient, currentValue].join(" #!# ");
                 if (moves.hasOwnProperty(move)) {
-                    moves[move].push(ballot);
+                    moves[move].push(newPartialBallot);
                 } else {
-                    moves[move] = [ballot];
+                    moves[move] = [newPartialBallot];
                 }
-                transferred.push(ballot);
+                transferred.push(newPartialBallot);
+                break;
             } else {
                 i++;
             }
@@ -217,14 +324,42 @@ function redistributeBallots(selected, weight, hopefuls, allocated, voteCount) {
     return allocated;
 }
 
+// function addPartialBallotToNextRecipient(partialBallot) {
+
+// }
+
+function generate() {
+    let countTeams = document.getElementById("anmeldungenCount").value;
+    let teams = _.sampleSize(TEAMS, countTeams);
+    let result = '';
+    teams.forEach(function(team) {
+        let teamsClone = _.clone(teams);
+        teamsClone = _.remove(teamsClone, function(n) {
+            return n !== team;
+          });
+          teamsClone = _.shuffle(teamsClone);
+          result = result + teamsClone.join(',') + '\n';
+    });
+    document.getElementById("csvInput").value = result;
+
+}
+
 class Ballot {
     candidates = [];
-    weights = [1.0];
     currentPreference = 0;
-    _value = 1.0;
+    remainingPartialVote = 1;
 
     constructor(candidates = []) {
         this.candidates = candidates;
+    }
+}
+
+class PartialBallot {
+    weights = [1.0];
+    _value = 1.0;
+
+    constructor(ballot) {
+        this.ballot = ballot;
     }
 
     addWeight(weight) {
@@ -237,10 +372,18 @@ class Ballot {
     }
 }
 
+document.getElementById("generate").onclick = function() {
+    if (document.getElementById("anmeldungenCount").value) {
+        generate();
+    } else {
+        M.toast({html: "Bitte fülle die Felder aus"});
+    }
+}
+
 document.getElementById("first-start").onclick = function () {
     if (document.getElementById("seat").value && document.getElementById("csvInput").value) {
         runStv();
     } else {
-        M.toast({html: "Invalid input"});
+        M.toast({html: "Bitte fülle die Felder aus"});
     }
 }
