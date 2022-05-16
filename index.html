@@ -5,6 +5,7 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <meta name="theme-color" content="#607d8b"/>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <!-- Created by Siwat Techavoranant -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" integrity="sha256-OweaP/Ic6rsV+lysfyS4h+LM6sRwuO3euTYfr6M124g="
           crossorigin="anonymous"/>
@@ -50,6 +51,7 @@
             overflow: visible;
             height: auto;
             min-height: 54px;
+            color: #fff !important;
         }
 
         #output {
@@ -69,14 +71,15 @@
         <span id="subtitle">Ein Service des Jugger Münster e.V.</span>
     </div>
 </div>
+<a class="waves-effect waves-light btn-large purple fullwidth" id="restart">Zurücksetzen</a>
 
 <main class="container">
     <blockquote id="output">
         <h5>Ergebnis</h5>
     </blockquote>
     <div id="inputBox">
-        <div class="input-field col s6">
-            <input id="seat" type="number" class="validate" required min="1" step="1" max="500" value="1">
+        <div class="input-field">
+            <input id="seat" type="number" class="validate" required min="1" step="1" max="500" value="15">
             <label for="seat">Anzahl der zu verteilenden Startplätze</label>
         </div>
         <div class="input-field">
@@ -91,6 +94,30 @@ Banana,Strawberry">Chocolate,Strawberry
 Banana,Sweets
 Banana,Sweets
 Banana,Strawberry</textarea>
+        </div>
+        <div class="container-fluid p-0">
+            <div class="row">
+                <div class="col-md-6 pl-0">
+                    <div class="input-field">
+                        <p>Rookie-Teams, separiert durch Zeilen</p>
+                        <textarea id="rookieTeams" required placeholder="Chocolate
+Strawberry" value="Chocolate
+Strawberry">Chocolate
+Strawberry</textarea>
+                    </div>
+                    <input id="reservedRookiePlaces" type="number" required value=2></input>
+                </div>
+                <div class="col-md-6 pr-0">
+                    <div class="input-field">
+                        <p>Regionale-Teams, separiert durch Zeilen</p>
+                            <textarea id="regionalTeams" required placeholder="Chocolate
+Strawberry" value="Chocolate
+Strawberry">Chocolate
+Strawberry</textarea>
+                    </div>
+                    <input id="reservedRegionalPlaces" type="number" required value=2></input>
+                </div>
+            </div>
         </div>
         <a class="waves-effect waves-light btn-large purple fullwidth" id="first-start">Ergebnis anzeigen</a>
         <div class="input-field">
@@ -111,6 +138,6 @@ Banana,Strawberry</textarea>
 </footer>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js" integrity="sha256-U/cHDMTIHCeMcvehBv1xQ052bPSbJtbuiw4QA9cTKz0=" crossorigin="anonymous"></script>
 <script src="lodash.js"></script>
-<script src="stv2.js" type="application/javascript"></script>
+<script src="stv3.js" type="application/javascript"></script>
 </body>
 </html>

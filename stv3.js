@@ -4,10 +4,14 @@ const ACTION = {
     ELIMINATE: "-Team mit den geringsten Stimmen ausschließen",
     QUOTA: "!QUOTA",
     ELECT: "+Team mit Stimmen größer gleich Quote zuteilen",
+    ELECT2: "+Team auf Grund reservierter Plätze zuteilen",
+    NOELECT: "~Team mit Stimmen größer gleich Quote auf Warteliste, da Rookie-, Regionalquote nicht erfüllbar",
+    WAITING: "+Team auf Warteliste setzen",
     COUNT: ".Aktuelle Stimmenverteilung",
-    ZOMBIES: "~ZOMBIES",
+    ZOMBIES: "~Bereits ausgeschiedenes Team in umgekehrter Reihenfolge",
     RANDOM: "*Gleichstand - Losentscheidung",
-    THRESHOLD: "Mindestanzahl Stimmen um gewählt zu werden (Droop-Quote)"
+    THRESHOLD: "Mindestanzahl Stimmen um gewählt zu werden (Droop-Quote)",
+    OPENRESERVES: "Noch offene reservierte Plätze"
 };
 const ballotSeparator = "\n";
 const voteSeparator = ",";
@@ -57,17 +61,27 @@ const TEAMS = [
 
 const VOTES_PER_TEAM = 8;
 
+let rookieTeams = [];
+let regionalTeams = [];
+
 function runStv() {
     // Transform input
     const ballots = document.getElementById("csvInput").value.trim().split(ballotSeparator).map(ballotTxt => {
         return new Ballot(ballotTxt.trim().split(voteSeparator).map(voteTxt => voteTxt.trim()).filter(vote => vote))
     }).filter(ballot => ballot.candidates.length > 0);
 
+    rookieTeams = document.getElementById("rookieTeams").value.trim().split(ballotSeparator);
+    regionalTeams = document.getElementById("regionalTeams").value.trim().split(ballotSeparator);
+
+    let rookieSlots = parseInt(document.getElementById("reservedRookiePlaces").value);
+    let regionalSlots = parseInt(document.getElementById("reservedRegionalPlaces").value);
+
     const seats = parseInt(document.getElementById("seat").value);
-    document.getElementById("inputBox").innerHTML = "";
+    document.getElementById("inputBox").style.display = "none";
     document.getElementById("output").style.display = "block";
 
-    const threshold = 1 + ((ballots.length * VOTES_PER_TEAM) / (seats + 1)); // Droop quota
+    //const threshold = 1 + ((ballots.length * VOTES_PER_TEAM) / (seats + 1)); // Droop quota
+    const threshold = (ballots.length * VOTES_PER_TEAM) / (seats);
     output("Anzahl Stimmen", (ballots.length * VOTES_PER_TEAM) + " von " + ballots.length + " Stimmberechtigten Teams" );
     output("Anzahl Startplätze", seats);
     output(ACTION.THRESHOLD, threshold);
@@ -78,8 +92,8 @@ function runStv() {
     let elected = [] // The candidates that have been elected
     let hopefuls; // The candidates that may be elected
     let eliminated = [] // The candidates that have been eliminated because of low counts
+    let waitinglist = [] // The candidates that have been eliminated because of unfulfilled requirements
 
-    console.log(ballots);
     // Initial count
     for (const ballot of ballots) {
         for (const candidate of ballot.candidates) {
@@ -100,6 +114,19 @@ function runStv() {
         ballot.currentPreference = VOTES_PER_TEAM;
     }
     hopefuls = candidates; // In the beginning, all candidates are hopefuls
+
+    for (const rookie of rookieTeams) {
+        if (!candidates.includes(rookie)) {
+            output("FEHLER", "Rookie Team '" + rookie + "' ist nicht Bestandteil der Liste aller Teams");
+            return;
+        }
+    }
+    for (const regional of rookieTeams) {
+        if (!candidates.includes(regional)) {
+            output("FEHLER", "Regional Team '" + regional + "' ist nicht Bestandteil der Liste aller Teams");
+            return;
+        }
+    }
 
     // Start rounds
     let currentRound = 1;
@@ -123,6 +150,20 @@ function runStv() {
             }
             hopefuls = hopefuls.filter(hopeful => hopeful !== bestCandidate); // Remove from hopefuls
 
+            if (rookieTeams.includes(bestCandidate) && rookieSlots > 0) {
+                rookieSlots--;
+            } else if (regionalTeams.includes(bestCandidate) && regionalSlots > 0) {
+                regionalSlots--;
+            } else if (seats - elected.length <= rookieSlots + regionalSlots) {
+                output(ACTION.NOELECT, bestCandidate + " = " + voteCount[bestCandidate]);
+                waitinglist.push([bestCandidate, currentRound]);
+                allocated = redistributeBallots(bestCandidate, 1, hopefuls, allocated, voteCount);
+                currentRound++;
+                numHopefuls = hopefuls.length;
+                numElected = elected.length;
+                continue;
+            }
+
             // Elect
             elected.push([bestCandidate, currentRound, voteCount[bestCandidate]]);
             output(ACTION.ELECT, bestCandidate + " = " + voteCount[bestCandidate]);
@@ -135,6 +176,7 @@ function runStv() {
                 // candidate with its value adjusted by the correct weight.
                 allocated = redistributeBallots(bestCandidate, weight, hopefuls, allocated, voteCount);
             }
+            
         } else {
             // If nobody can get elected, take the least hopeful candidate
             // (i.e., the hopeful candidate with the less votes) and redistribute that candidate's votes.
@@ -150,22 +192,49 @@ function runStv() {
         numElected = elected.length;
     }
 
-    while ((seats - numElected) > 0 && eliminated.length > 0) {
+    output('', '');
+    output('#############', '');
+    output('Alle Stimmen ausgewertet', '');
+    output('#############', '');
+    output(ACTION.ZOMBIES, listTeams(eliminated));
+
+    output('', '');
+    output(ACTION.OPENRESERVES, "Rookie Plätze: " + rookieSlots + ", Regional Plätze: " + regionalSlots);
+
+    while (eliminated.length > 0) {
         // If there is either a candidate with surplus votes,
         // or there are hopeful candidates beneath the threshold.
-        output(ACTION.COUNT, currentRound);
-        output(ACTION.ZOMBIES, countDescription(voteCount, eliminated));
+        output('', '');
+        output(ACTION.COUNT_ROUND, currentRound);
         const bestCandidate = eliminated.pop();
 
-        // Elect
-        elected.push([bestCandidate, currentRound, voteCount[bestCandidate]]);
-        output(ACTION.ELECT, bestCandidate + " = " + voteCount[bestCandidate]);
+        if (rookieTeams.includes(bestCandidate) && rookieSlots > 0) {
+            rookieSlots--;
+            elected.push([bestCandidate, currentRound, "reserviertem Rookieplatz"]);
+            output(ACTION.ELECT2, bestCandidate + " = ROOKIE");
+        } else if (regionalTeams.includes(bestCandidate) && regionalSlots > 0) {
+            regionalSlots--;
+            elected.push([bestCandidate, currentRound, "reserviertem Regionalplatz"]);
+            output(ACTION.ELECT2, bestCandidate + " = REGIONAL");
+        } else {
+            // Elect
+            waitinglist.push([bestCandidate, currentRound]);
+            output(ACTION.WAITING, bestCandidate);
+        }
         currentRound++;
     }
 
     output('', '');
     for (const e of elected) {
-        output("***Platz zugeteilt", e[0] + " in Runde " + e[1] + " mit " + e[2] + " Stimmen");
+        if (typeof e[2] === "string") {
+            output("***Platz zugeteilt", e[0] + " in Runde " + e[1] + " wegen " + e[2]);
+        } else {
+            output("***Platz zugeteilt", e[0] + " in Runde " + e[1] + " mit " + e[2] + " Stimmen");
+        }
+    }
+    output('', '');
+    for (const e of waitinglist) {
+        output("***Warteliste", e[0] + " in Runde " + e[1]);
     }
 }
 
@@ -180,6 +249,19 @@ function output(tag, description) {
 function countDescription(voteCount, hopefuls) {
     return hopefuls.map(hopeful => {
         return hopeful + " = " + voteCount[hopeful].toFixed(3);
+    }).join(", ");
+}
+
+function listTeams(teams) {
+    return teams.slice().reverse().map(team => {
+        let result = team;
+        if (rookieTeams.includes(team)) {
+            return result + " = ROOKIE";
+        }
+        if (regionalTeams.includes(team)) {
+            return result + " = REGIONAL";
+        }
+        return result;
     }).join(", ");
 }
 
@@ -249,16 +331,25 @@ function redistributeBallots(selected, weight, hopefuls, allocated, voteCount) {
         const remainingValueBallot = new PartialBallot(partialBallot.ballot);
         remainingValueBallot.addWeight(newVal);
         if (allocated.hasOwnProperty(recipient)) {
-            allocated[recipient].push(remainingValueBallot);
+            let found = false;
+            for (let otherBallot of allocated[recipient]) {
+                if (otherBallot.ballot === partialBallot.ballot) {
+                    otherBallot.addValue(newVal);
+                    found = true;
+                }
+            }
+            if (!found) {
+                allocated[recipient].push(partialBallot);
+            }
         } else {
             allocated[recipient] = [remainingValueBallot];
         }
         if (voteCount.hasOwnProperty(recipient)) {
-            voteCount[recipient] += currentValue;
+            voteCount[recipient] += newVal;
         } else {
-            voteCount[recipient] = currentValue;
+            voteCount[recipient] = newVal;
         }
-        voteCount[selected] -= currentValue;
+        voteCount[selected] -= newVal;
         const move = [selected, recipient, newVal].join(" #!# ");
         if (moves.hasOwnProperty(move)) {
             moves[move].push(remainingValueBallot);
@@ -275,7 +366,7 @@ function redistributeBallots(selected, weight, hopefuls, allocated, voteCount) {
         partialBallot.ballot.currentPreference++;
         i++;
 
-        currentValue = remainingValue - newVal;
+        currentValue = currentValue - newVal;
         if (0 === currentValue) {
             continue;
         }
@@ -287,10 +378,18 @@ function redistributeBallots(selected, weight, hopefuls, allocated, voteCount) {
             if (hopefuls.includes(recipient)) {
                 const newPartialBallot = new PartialBallot(partialBallot.ballot);
                 newPartialBallot.addWeight(currentValue);
-                allocated[recipient].push(newPartialBallot);
 
                 if (allocated.hasOwnProperty(recipient)) {
-                    allocated[recipient].push(newPartialBallot);
+                    let found = false;
+                    for (let otherBallot of allocated[recipient]) {
+                        if (otherBallot.ballot === newPartialBallot.ballot) {
+                            otherBallot.addValue(currentValue);
+                            found = true;
+                        }
+                    }
+                    if (!found) {
+                        allocated[recipient].push(newPartialBallot);
+                    }
                 } else {
                     allocated[recipient] = [newPartialBallot];
                 }
@@ -340,6 +439,9 @@ function generate() {
           teamsClone = _.shuffle(teamsClone);
           result = result + teamsClone.join(',') + '\n';
     });
+    let specialteams = _.sampleSize(teams, 8);
+    document.getElementById("rookieTeams").value = specialteams.slice(0,3).join(ballotSeparator);
+    document.getElementById("regionalTeams").value = specialteams.slice(4,7).join(ballotSeparator);
     document.getElementById("csvInput").value = result;
 
 }
@@ -355,7 +457,6 @@ class Ballot {
 }
 
 class PartialBallot {
-    weights = [1.0];
     _value = 1.0;
 
     constructor(ballot) {
@@ -363,8 +464,11 @@ class PartialBallot {
     }
 
     addWeight(weight) {
-        this.weights.push(weight);
         this._value *= weight;
+    }
+
+    addValue(value) {
+        this._value += value;
     }
 
     getValue() {
@@ -386,4 +490,10 @@ document.getElementById("first-start").onclick = function () {
     } else {
         M.toast({html: "Bitte fülle die Felder aus"});
     }
+}
+
+document.getElementById("restart").onclick = function () {
+    document.getElementById("inputBox").style.display = "block";
+    document.getElementById("output").style.display = "none";
+    document.getElementById("output").innerHTML = "<h5>Ergebnis</h5>";    
 }
