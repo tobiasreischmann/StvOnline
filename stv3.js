@@ -10,7 +10,7 @@ const ACTION = {
     COUNT: ".Aktuelle Stimmenverteilung",
     ZOMBIES: "~Bereits ausgeschiedenes Team in umgekehrter Reihenfolge",
     RANDOM: "*Gleichstand - Losentscheidung",
-    THRESHOLD: "Mindestanzahl Stimmen um gewählt zu werden (Droop-Quote)",
+    THRESHOLD: "Mindestanzahl Stimmen um gewählt zu werden",
     OPENRESERVES: "Noch offene reservierte Plätze"
 };
 const ballotSeparator = "\n";
@@ -225,6 +225,13 @@ function runStv() {
     }
 
     output('', '');
+    output('#############', '');
+    output('Endergebnis', '');
+    output('#############', '');
+
+    output('', '');
+
+
     for (const e of elected) {
         if (typeof e[2] === "string") {
             output("***Platz zugeteilt", e[0] + " in Runde " + e[1] + " wegen " + e[2]);
